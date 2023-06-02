@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Rnd } from "react-rnd";
 import ChatBox from "~components/chat_box";
-import { throttle } from "lodash";
+import { debounce } from "lodash";
 import { getLatestState } from "~utils/state";
 
 function ChatArticle () {
@@ -10,7 +10,7 @@ function ChatArticle () {
     const [scrollTop, setScrollTop] = useState(0);
 
     useEffect(() => {
-        const handleScroll = throttle(async () => {
+        const handleScroll = debounce(async () => {
             const p = await getLatestState(setReactivePosition);
 
             setScrollTop(scrollRef?.scrollTop);
