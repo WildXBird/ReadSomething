@@ -1,5 +1,7 @@
 import { Readability } from "@mozilla/readability";
-import React, { ReactNode, useContext, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react"
+
+import React, { useContext, useEffect, useRef, useState } from "react";
 import styleText from "data-text:./content.scss";
 import type { PlasmoCSConfig, PlasmoGetStyle } from "plasmo";
 import readingTime from "reading-time/lib/reading-time";
@@ -11,8 +13,8 @@ import ChatArticle from "~components/chat_article";
 import { ScrollProvider } from "~provider/scroll";
 import Scroll from "~components/scroll";
 import { ChatMessageProvider } from "~provider/chat";
+import Prism from "prismjs";
 
-// a plasmo hook
 export const getStyle: PlasmoGetStyle = () => {
     const style = document.createElement("style");
     style.textContent = styleText;
@@ -24,7 +26,7 @@ export const config: PlasmoCSConfig = {
     css: ["fontFamily.css", "fontClassNames.scss"]
 };
 
-const getMetaContentByProperty = function (metaProperty: string) {
+const getMetaContentByProperty = (metaProperty: string) => {
     const metas = document.getElementsByTagName("meta");
 
     for (let i = 0; i < metas.length; i++) {
@@ -44,7 +46,7 @@ const isValidUrl = urlString => {
     }
 };
 
-function Author ({ link, author }: { link: string, author: string }) {
+const Author = ({ link, author }: { link: string, author: string }) => {
     if (!author) return null;
 
     let authorNode = <span>{author},</span>;
@@ -76,7 +78,7 @@ function ThemeWrap ({ children }: { children: ReactNode }) {
     </div>;
 }
 
-function MainContent ({ children }: { children: ReactNode }) {
+const MainContent = ({ children }: { children: ReactNode }) => {
     const { settingObject: { fontSize, pageWidth, lineSpacing, fontFamily } } = useContext(SettingContext);
 
     return <div style={{
@@ -90,13 +92,13 @@ function MainContent ({ children }: { children: ReactNode }) {
     </div>;
 }
 
-function ContainerWrap ({ children }: { children: ReactNode }) {
+const ContainerWrap = ({ children }: { children: ReactNode }) => {
     const { settingObject: { fontFamily } } = useContext(SettingContext);
 
     return <div className={`container ${fontFamily !== "Default" ? "custom-font" : ""}`}>{children}</div>;
 }
 
-function Title ({ title }: { title: string }) {
+const Title = ({ title }: { title: string }) => {
     const { translateOn } = useContext(ReaderContext);
     const ref = useRef<HTMLHeadingElement>(null);
     const { settingObject: { translateService, openaiKey } } = useContext(SettingContext);
@@ -110,7 +112,7 @@ function Title ({ title }: { title: string }) {
     return <h1 ref={ref} className="reader-title" style={{ fontFamily: "Bookerly" }}>{title}</h1>;
 }
 
-function Main () {
+const Main = () => {
     useEffect(() => {
         const defaultOverflowStyle = document.body.style.overflow;
         document.body.style.overflow = "hidden";
@@ -120,10 +122,22 @@ function Main () {
         };
     }, []);
 
+    useEffect(() => {
+        const codes = document.querySelectorAll("plasmo-csui")[0].shadowRoot.querySelectorAll("pre code");
+
+        if (codes) {
+            codes.forEach(block => {
+                try {
+                    Prism.highlightElement(block as HTMLElement);
+                } catch (e) {
+                    console.error(e);
+                }
+            })
+        }
+    }, []);
+
     const documentClone = document.cloneNode(true);
-    const article = new Readability(documentClone as Document, {
-        keepClasses: true
-    }).parse();
+    const article = new Readability(documentClone as Document,  {}).parse();
     const articleUrl = window.location.href;
     const author = article.byline ?? "";
     const authorLink = getMetaContentByProperty("article:author");
@@ -209,4 +223,4 @@ const Reader = () => {
     return <Main />;
 };
 
-export default Reader;
+export default React.memo(Reader);

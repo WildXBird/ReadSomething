@@ -16,8 +16,8 @@ const handler: PlasmoMessaging.MessageHandler<{ text: string, openaiKey: string 
         top_p: 1.0,
         frequency_penalty: 0.0,
         presence_penalty: 1
+        // @ts-ignore
     }, { adapter: fetchAdapter }).then(resp => {
-        console.log(resp);
         res.send({
             message: `{"data": ${JSON.stringify(resp.data.choices[0].text)}}`
         });

@@ -38,7 +38,6 @@ export const translateAnchor = async function (anchor: Element, translateService
             name: translateService,
             body: buildRequestBody(translateService, anchor, openaiKey)
         });
-        console.log(message.message);
         const resp = JSON.parse(message.message);
 
         // create a template container to get translated result, as the result is a string
