@@ -18,7 +18,7 @@ const ChatBox = () => {
 
     const doSummarize =  debounce(async () => {
         const _cache = await getLatestState(setCache);
-
+        console.log("cache", _cache)
         let content = "";
 
         let i = 0;
@@ -34,6 +34,8 @@ const ChatBox = () => {
         }
 
         setCache(prevState => prevState.slice(Math.min(i, _cache.length)));
+
+        console.log('content', content)
 
         if (content === "") {
             return;
@@ -107,13 +109,15 @@ const ChatBox = () => {
         userInput.current.value = "";
     };
 
+    console.log('components', components)
+
     return (<div id={"rs-openai-chat"}
         className={"rs-openai-chat flex flex-col items-center h-full justify-center text-gray-800 bg-purple-50 shadow pb-4 rounded"}
         style={{ fontSize: "0.9rem", transition: "all 0.2s ease-in-out" }}
     >
         <div className={"rs-chat-draggable self-center py-2"}><IconChatDrag style={{ rotate: "90deg" }} /></div>
         <div ref={ref => setChatScrollRef(ref)}
-            className="flex flex-col flex-grow w-full h-full max-w-xl rounded-lg overflow-y-auto scrollbar-hide px-2">
+            className="text-[14px] flex flex-col flex-grow w-full h-full max-w-xl rounded-lg overflow-y-auto scrollbar-hide px-2">
             <div id={"rs-openai-answer"} className="flex flex-col flex-grow">
                 <div className="flex w-full">
                     <div className="flex w-[80%]">
@@ -134,7 +138,7 @@ const ChatBox = () => {
                     <input ref={userInput}
                         className="flex items-center h-10 w-full rounded text-sm z-20 focus:outline-none px-2"
                         type="text" autoFocus={true} onKeyDown={handleKeyPress}
-                        style={{ transition: "all 0.2s ease-in-out", caretColor: "#a78bfa" }}
+                        style={{ transition: "all 0.2s ease-in-out", caretColor: "#a78bfa", fontSize: "14px" }}
                     />
 
                     <button onClick={handleChatSendButtonClick} className={"outline-none h-10 px-[10px] bg-white"}>

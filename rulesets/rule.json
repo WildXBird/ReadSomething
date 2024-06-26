@@ -1,0 +1,101 @@
+[
+    {
+        "id": 1,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "requestHeaders": [
+                {
+                    "header": "Origin",
+                    "operation": "remove"
+                },
+                {
+                    "header": "Referer",
+                    "operation": "remove"
+                }
+            ]
+        },
+        "condition": {
+            "urlFilter": "|*--gein=1",
+            "resourceTypes": [
+                "main_frame",
+                "sub_frame",
+                "xmlhttprequest"
+            ]
+        }
+    },
+    {
+        "id": 2,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "requestHeaders": [
+                {
+                    "header": "Origin",
+                    "value": "https://labs.perplexity.ai",
+                    "operation": "set"
+                },
+                {
+                    "header": "Referer",
+                    "value": "https://labs.perplexity.ai/",
+                    "operation": "set"
+                }
+            ]
+        },
+        "condition": {
+            "urlFilter": "|*--ppp=1",
+            "resourceTypes": [
+                "main_frame",
+                "sub_frame",
+                "xmlhttprequest"
+            ]
+        }
+    },
+    {
+        "id": 3,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "responseHeaders": [
+                {
+                    "header": "Content-Security-Policy",
+                    "operation": "remove"
+                },
+                {
+                    "header": "X-Frame-Options",
+                    "operation": "remove"
+                }
+            ]
+        },
+        "condition": {
+            "urlFilter": "|*--inapp=1",
+            "resourceTypes": [
+                "main_frame",
+                "sub_frame",
+                "xmlhttprequest"
+            ]
+        }
+    },
+    {
+        "id": 4,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "requestHeaders": [
+                {
+                    "header": "Origin",
+                    "value": "https://www.perplexity.ai",
+                    "operation": "set"
+                }
+            ]
+        },
+        "condition": {
+            "urlFilter": "wss://www.perplexity.ai/socket.io/?EIO=4*",
+            "resourceTypes": [
+                "main_frame",
+                "sub_frame",
+                "websocket"
+            ]
+        }
+    }
+]

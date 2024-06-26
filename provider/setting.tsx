@@ -26,7 +26,7 @@ interface TypeSettingContext {
 
 export const SettingContext = createContext({} as TypeSettingContext);
 
-const SettingStorageKey = "__READSOMETHING_SETTING_V3";
+export const SettingStorageKey = "__READSOMETHING_SETTING_V3";
 
 export default function SettingProvider ({ children }: { children: ReactNode }) {
     const [settingObject, setSettingObject] = useState({} as SettingObject);
@@ -48,6 +48,7 @@ export default function SettingProvider ({ children }: { children: ReactNode }) 
             openaiKey = '';
 
         try {
+            console.log('await storage.get(SettingStorageKey)', await storage.get(SettingStorageKey))
             const setting = JSON.parse(await storage.get(SettingStorageKey));
 
             if (setting) {

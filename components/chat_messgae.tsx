@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { getLatestState } from "~utils/state";
 import { ChatMessageContext } from "~provider/chat";
-import type { ChatMessage } from "~provider/chat";
-import { SettingContext } from "~provider/setting";
-import { CountTokens } from "~utils/token";
+import { createUuid } from "~utils";
+import { ResponseMessageType } from "~libs/bots/ibot";
+import markdownit from "markdown-it";
+import hljs from "highlight.js";
+import { Claude3Haiku } from "~libs/bots/perplexity/claude3_haiku";
 
 const ChatUserMessage = (props) => {
     const { chatScrollRef } = React.useContext(ChatMessageContext);
@@ -26,11 +27,27 @@ const ChatUserMessage = (props) => {
     );
 };
 
+const md:any = markdownit({
+    highlight: function (str: string, lang: string) {
+        if (lang && hljs.getLanguage(lang)) {
+            try {
+                return '<pre class="overflow-x-auto"><code  style="background-color: #F6F8FA" class="hljs">' +
+                    hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                    '</code></pre>';
+            } catch (__) {/*ignore*/}
+        }
+
+        return '<pre><code style="background-color: #F6F8FA" class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>';
+    },
+    linkify: true,
+    html: true,
+    typographer: true
+});
+
 const ChatAssistantMessage = (props) => {
     const [message, setMessage] = useState("");
-    const { settingObject: { openaiKey } } = React.useContext(SettingContext);
-    const { messages, setMessages, chatScrollRef, isLoading, setIsLoading } = React.useContext(ChatMessageContext);
-
+    // const { settingObject: { openaiKey } } = React.useContext(SettingContext);
+    const { messages, isLoading, setIsLoading } = React.useContext(ChatMessageContext);
     useEffect(() => {
         if (isLoading) return;
 
@@ -39,119 +56,29 @@ const ChatAssistantMessage = (props) => {
         callOpenAI();
     }, []);
 
-    function handleMessages () {
-        const threshold = 4096 - 1024;
-
-        let limitMessages = [];
-        let currentLength = 0;
-
-        for (let i = messages.length - 1; i >= 1; i--) {
-            const message = messages[i];
-            currentLength += CountTokens(message.content);
-
-            if (currentLength > threshold || i === 1) {
-                limitMessages = [messages[0], ...messages.slice(i)];
-                break;
-            }
-        }
-
-        return [...limitMessages];
-    }
-
     const callOpenAI = function () {
-        // check openaiKey
-        const myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/json");
-        myHeaders.append("Authorization", `Bearer ${openaiKey}`);
+        console.log('start call openai')
+        void new Claude3Haiku({
+            globalConversationId: "1",
+            parentMessageId: ""
+        }).completion({
+            cb: (rid, response)  => {
+                console.log(response)
+                setMessage(response.message_text);
 
-        const raw = JSON.stringify({
-            "model": "gpt-3.5-turbo-0301",
-            "stream": true,
-            "messages": handleMessages()
-        });
-
-        const requestOptions = {
-            method: "POST",
-            headers: myHeaders,
-            body: raw,
-            redirect: "follow"
-        };
-
-        // @ts-ignore
-        fetch("https://api.openai.com/v1/chat/completions", requestOptions)
-            .then(response => {
-                const stream = response.body;
-                const reader = stream.getReader();
-
-                if (response.status === 401 || response.status === 403) {
-                    setMessage("请检查 API Key 是否正确，Settings -> OpenAI Key");
-                    setIsLoading(false);
-
-                    return
-                } else if (response.status >= 500) {
-                    setMessage("OpenAI 服务异常，请稍后再试");
-                    setIsLoading(false);
+                if (response.message_type === ResponseMessageType.DONE) {
+                    setIsLoading(false)
                 }
-
-                function readStream () {
-                    reader.read().then(async ({ done, value }) => {
-                        if (done) {
-                            return;
-                        }
-
-                        const enc = new TextDecoder("utf-8");
-                        const str = enc.decode(value.buffer);
-
-                        let chunk = "";
-
-                        for (const line of str.split("\n")) {
-                            let text = line.replace("data: ", "").replace("\n", "");
-
-                            if (text !== "" && text !== "[DONE]") {
-                                const payload = JSON.parse(text);
-                                chunk += (payload.choices[0].delta.content || "");
-                            }
-
-                            if (text === "[DONE]") {
-                                setIsLoading(false);
-
-                                let latestMessage = await getLatestState(setMessage);
-
-                                setMessages([...messages, {
-                                    role: "assistant",
-                                    content: latestMessage
-                                } as ChatMessage]);
-
-                            }
-                        }
-
-                        setMessage(prevState => {
-                            if (prevState === "···") {
-                                prevState = "";
-                            }
-
-                            return prevState + (chunk || "");
-                        });
-
-                        // Auto scroll to bottom
-                        if (chatScrollRef !== null) {
-                            chatScrollRef.scrollTop = chatScrollRef?.scrollHeight;
-                        }
-
-                        // read the next chunk
-                        readStream();
-                    });
-                }
-
-                readStream();
-            });
-
+            },
+            prompt: messages[messages.length - 1].content,
+            rid: createUuid()
+        })
     };
 
     return (
         <div className="flex w-full">
             <div className="w-[80%] bg-purple-50 border-amber-50">
-                <div className="bg-grey-300 p-2" dangerouslySetInnerHTML={{ __html: message }}></div>
+                <div className="bg-grey-300 p-2" dangerouslySetInnerHTML={{ __html: md.render(message) }}></div>
             </div>
         </div>
     );
