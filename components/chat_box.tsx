@@ -47,7 +47,7 @@ const ChatBox = () => {
             content: "这是一段文章内容：\n\n" + content
         } as ChatMessage]);
         setComponents(prevState => [...prevState, <ChatAssistantMessage />]);
-    }, 1000);
+    }, 2000);
 
     useEffect(() => {
         const callback = async (entries, observer) => {
@@ -93,6 +93,8 @@ const ChatBox = () => {
         if (isLoading || copy === "") {
             return;
         }
+
+        console.log('hello world')
 
         const prompt = "Please answer my question with the context: \n\n" + copy;
         // @ts-ignore

@@ -4,7 +4,10 @@ import { createUuid } from "~utils";
 import { ResponseMessageType } from "~libs/bots/ibot";
 import markdownit from "markdown-it";
 import hljs from "highlight.js";
-import { Claude3Haiku } from "~libs/bots/perplexity/claude3_haiku";
+import { type ChatError } from "~utils/chat-errors";
+import { Llama3SonarLarge32kChat } from "~libs/bots/perplexity/llama3_sonar_large_32k_chat";
+
+// const EXTENSION_ID = chrome.runtime.id
 
 const ChatUserMessage = (props) => {
     const { chatScrollRef } = React.useContext(ChatMessageContext);
@@ -44,10 +47,17 @@ const md:any = markdownit({
     typographer: true
 });
 
+// const CompletionErrorView = function ({ error }: {error: ChatError}) {
+//     if (error.code === ErrorCode.CAPTCHA) {
+//         return <a href={EXTENSION_ID}></a>
+//     }
+// }
+
 const ChatAssistantMessage = (props) => {
     const [message, setMessage] = useState("");
-    // const { settingObject: { openaiKey } } = React.useContext(SettingContext);
     const { messages, isLoading, setIsLoading } = React.useContext(ChatMessageContext);
+    const [, setCompletionError] = useState<ChatError>();
+
     useEffect(() => {
         if (isLoading) return;
 
@@ -58,16 +68,23 @@ const ChatAssistantMessage = (props) => {
 
     const callOpenAI = function () {
         console.log('start call openai')
-        void new Claude3Haiku({
+        void new Llama3SonarLarge32kChat({
             globalConversationId: "1",
             parentMessageId: ""
         }).completion({
             cb: (rid, response)  => {
                 console.log(response)
-                setMessage(response.message_text);
 
-                if (response.message_type === ResponseMessageType.DONE) {
+                if (response.message_text) {
+                    setMessage(response.message_text);
+                }
+
+                if ([ResponseMessageType.DONE, ResponseMessageType.ERROR].includes(response.message_type)) {
                     setIsLoading(false)
+
+                    if (response.error) {
+                        setCompletionError(response.error)
+                    }
                 }
             },
             prompt: messages[messages.length - 1].content,

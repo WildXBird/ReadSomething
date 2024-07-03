@@ -14,6 +14,7 @@ import { BotBase } from "~libs/bots/bot_base";
 import {
     IS_OPEN_IN_CHAT_AUTH_WINDOW, MESSAGE_ACTION_CHAT_PROVIDER_AUTH_SUCCESS, WINDOW_FOR_REMOVE_STORAGE_KEY
 } from "~utils/constants";
+import { getPort } from "@plasmohq/messaging/port"
 
 class Message {
     content: string;
@@ -41,6 +42,7 @@ export class PerplexitySession {
     private prompt: string;
     private sid: string;
     private messages: Message[] = [];
+    private socketPort: chrome.runtime.Port
 
     static destroy () {
         // if(PerplexitySession?.ws?.isOpened) {
@@ -221,154 +223,178 @@ export class PerplexitySession {
         this.ws.sendPacked(ask);
     }
 
+    private onMessageCallback = ({ rid, data }: { rid: string, data: ConversationResponse }) => {
+        if ([ResponseMessageType.ERROR, ResponseMessageType.DONE].includes(data.message_type)) {
+            this.socketPort?.onMessage.removeListener(this.onMessageCallback)
+            // this.socketPort.disconnect()
+        }
+
+        console.log(this)
+
+        this.msgCallback(rid as string, data as ConversationResponse)
+    }
+
     private createWs (): void {
+        this.socketPort = getPort("perplexity")
+
+        this.socketPort.onMessage.addListener(this.onMessageCallback);
+
+        this.socketPort.postMessage({
+            body: {
+                prompt: this.prompt,
+                sid: this.sid,
+                rid: this.rid,
+                model: this.model,
+            }
+        })
+
         // this.sid = "3pv0EzwUQ7vAgEMcAHLw"
-        const wsp = new WebSocketAsPromised(
-            `wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid=${this.sid}`,
-            {
-                packMessage: (data) => {
-                    return `42${this.seq++}${JSON.stringify(data)}`;
-                },
-                unpackMessage: (data) => {
-                    return this.separateNumberAndObject(data as string);
-                },
-            }
-        );
-
-        wsp.onOpen.addListener(() => {
-            wsp.send("2probe");
-        });
-
-        wsp.onMessage.addListener(function () {
-            // Logger.log("PerplexityBot onMessage", data)
-        });
-
-        wsp.onSend.addListener(function () {
-            // Logger.log("PerplexityBot onSend", data)
-        });
-
-        wsp.onUnpackedMessage.addListener(async (data) => {
-            if (!data) {
-                return;
-            }
-
-            try {
-                // Logger.log("data number", data.number, data)
-                switch (Number(data.number)) {
-                case 2:
-                    wsp.send("3");
-                    break;
-                case 3:
-                    if (data.object === "probe") {
-                        wsp.send("5");
-                        this.sendMessage();
-                    }
-
-                    break;
-                case 42:
-                    if (data?.object?.length >= 2) {
-                        const result = data.object[1];
-
-                        try {
-                            const response = result.output;
-
-                            if (response) {
-                                this.msgCallback(this.rid, new ConversationResponse(
-                                    {
-                                        conversation_id: this.sid,
-                                        message_text: response,
-                                        message_type: ResponseMessageType.GENERATING,
-                                    }
-                                ));
-                            }
-                        } catch (error) {
-                            this.msgCallback(this.rid, new ConversationResponse(
-                                {
-                                    conversation_id: this.sid,
-                                    message_type: ResponseMessageType.ERROR,
-                                    message_id: createUuid(),
-                                    error: new ChatError(ErrorCode.UNKNOWN_ERROR)
-                                }
-                            ));
-                        }
-                    }
-
-                    break;
-                default:
-                    if (String(data.number).toString().startsWith("43")) {
-                        if (data?.object?.length >= 1) {
-                            const result = data.object[0];
-
-                            try {
-                                if (result.status === "failed") {
-                                    this.msgCallback(this.rid, new ConversationResponse({
-                                        conversation_id: this.sid,
-                                        message_type: ResponseMessageType.ERROR,
-                                        message_id: createUuid(),
-                                        error: new ChatError(ErrorCode.MODEL_INTERNAL_ERROR, result.text)
-                                    }));
-
-                                    return;
-                                }
-
-                                this.addMessage(new Message(result.output, "assistant", 0));
-
-                                const text = result.output;
-
-                                if (text) {
-                                    this.msgCallback(this.rid, new ConversationResponse(
-                                        {
-                                            conversation_id: this.sid,
-                                            message_text: text,
-                                            message_id: createUuid(),
-                                            message_type: ResponseMessageType.DONE,
-                                        }
-                                    ));
-                                }
-                            } catch (error) {
-                                this.msgCallback(this.rid, new ConversationResponse(
-                                    {
-                                        conversation_id: this.sid,
-                                        message_type: ResponseMessageType.ERROR,
-                                        error: new ChatError(ErrorCode.UNKNOWN_ERROR)
-                                    }
-                                ));
-                            }
-                        }
-                    }
-
-                    break;
-                }
-            } catch (error) {
-                this.msgCallback(this.rid, new ConversationResponse(
-                    {
-                        conversation_id: this.sid,
-                        message_type: ResponseMessageType.ERROR,
-                        error: new ChatError(ErrorCode.UNKNOWN_ERROR)
-                    }
-                ));
-            }
-        });
-
-        wsp.onError.addListener(() => {
-            wsp.removeAllListeners();
-            void wsp.close();
-            this.msgCallback(this.rid, new ConversationResponse(
-                {
-                    conversation_id: this.sid,
-                    message_type: ResponseMessageType.ERROR,
-                    error: new ChatError(ErrorCode.COPILOT_WEBSOCKET_ERROR)
-                }
-            ));
-            // reject(event);
-        });
-
-        wsp.onClose.addListener(() => {
-        });
-
-        void wsp.open();
-
-        this.ws = wsp;
+        // const wsp = new WebSocketAsPromised(
+        //     `wss://www.perplexity.ai/socket.io/?EIO=4&transport=websocket&sid=${this.sid}`,
+        //     {
+        //         packMessage: (data) => {
+        //             return `42${this.seq++}${JSON.stringify(data)}`;
+        //         },
+        //         unpackMessage: (data) => {
+        //             return this.separateNumberAndObject(data as string);
+        //         },
+        //     }
+        // );
+        //
+        // wsp.onOpen.addListener(() => {
+        //     wsp.send("2probe");
+        // });
+        //
+        // wsp.onMessage.addListener(function () {
+        //     // Logger.log("PerplexityBot onMessage", data)
+        // });
+        //
+        // wsp.onSend.addListener(function () {
+        //     // Logger.log("PerplexityBot onSend", data)
+        // });
+        //
+        // wsp.onUnpackedMessage.addListener(async (data) => {
+        //     if (!data) {
+        //         return;
+        //     }
+        //
+        //     try {
+        //         // Logger.log("data number", data.number, data)
+        //         switch (Number(data.number)) {
+        //         case 2:
+        //             wsp.send("3");
+        //             break;
+        //         case 3:
+        //             if (data.object === "probe") {
+        //                 wsp.send("5");
+        //                 this.sendMessage();
+        //             }
+        //
+        //             break;
+        //         case 42:
+        //             if (data?.object?.length >= 2) {
+        //                 const result = data.object[1];
+        //
+        //                 try {
+        //                     const response = result.output;
+        //
+        //                     if (response) {
+        //                         this.msgCallback(this.rid, new ConversationResponse(
+        //                             {
+        //                                 conversation_id: this.sid,
+        //                                 message_text: response,
+        //                                 message_type: ResponseMessageType.GENERATING,
+        //                             }
+        //                         ));
+        //                     }
+        //                 } catch (error) {
+        //                     this.msgCallback(this.rid, new ConversationResponse(
+        //                         {
+        //                             conversation_id: this.sid,
+        //                             message_type: ResponseMessageType.ERROR,
+        //                             message_id: createUuid(),
+        //                             error: new ChatError(ErrorCode.UNKNOWN_ERROR)
+        //                         }
+        //                     ));
+        //                 }
+        //             }
+        //
+        //             break;
+        //         default:
+        //             if (String(data.number).toString().startsWith("43")) {
+        //                 if (data?.object?.length >= 1) {
+        //                     const result = data.object[0];
+        //
+        //                     try {
+        //                         if (result.status === "failed") {
+        //                             this.msgCallback(this.rid, new ConversationResponse({
+        //                                 conversation_id: this.sid,
+        //                                 message_type: ResponseMessageType.ERROR,
+        //                                 message_id: createUuid(),
+        //                                 error: new ChatError(ErrorCode.MODEL_INTERNAL_ERROR, result.text)
+        //                             }));
+        //
+        //                             return;
+        //                         }
+        //
+        //                         this.addMessage(new Message(result.output, "assistant", 0));
+        //
+        //                         const text = result.output;
+        //
+        //                         if (text) {
+        //                             this.msgCallback(this.rid, new ConversationResponse(
+        //                                 {
+        //                                     conversation_id: this.sid,
+        //                                     message_text: text,
+        //                                     message_id: createUuid(),
+        //                                     message_type: ResponseMessageType.DONE,
+        //                                 }
+        //                             ));
+        //                         }
+        //                     } catch (error) {
+        //                         this.msgCallback(this.rid, new ConversationResponse(
+        //                             {
+        //                                 conversation_id: this.sid,
+        //                                 message_type: ResponseMessageType.ERROR,
+        //                                 error: new ChatError(ErrorCode.UNKNOWN_ERROR)
+        //                             }
+        //                         ));
+        //                     }
+        //                 }
+        //             }
+        //
+        //             break;
+        //         }
+        //     } catch (error) {
+        //         this.msgCallback(this.rid, new ConversationResponse(
+        //             {
+        //                 conversation_id: this.sid,
+        //                 message_type: ResponseMessageType.ERROR,
+        //                 error: new ChatError(ErrorCode.UNKNOWN_ERROR)
+        //             }
+        //         ));
+        //     }
+        // });
+        //
+        // wsp.onError.addListener(() => {
+        //     wsp.removeAllListeners();
+        //     void wsp.close();
+        //     this.msgCallback(this.rid, new ConversationResponse(
+        //         {
+        //             conversation_id: this.sid,
+        //             message_type: ResponseMessageType.ERROR,
+        //             error: new ChatError(ErrorCode.COPILOT_WEBSOCKET_ERROR)
+        //         }
+        //     ));
+        //     // reject(event);
+        // });
+        //
+        // wsp.onClose.addListener(() => {
+        // });
+        //
+        // void wsp.open();
+        //
+        // this.ws = wsp;
     }
 }
 

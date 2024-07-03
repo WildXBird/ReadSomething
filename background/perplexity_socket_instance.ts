@@ -76,7 +76,7 @@ class PerplexitySocketInstance {
         }
 
         this.sid = sid
-        void this.ws.close()
+        void this.ws?.close()
         this.ws = null
 
         const wsp = new WebSocketAsPromised(
