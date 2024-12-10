@@ -14,6 +14,9 @@ import { ScrollProvider } from "~provider/scroll";
 import Scroll from "~components/scroll";
 import { ChatMessageProvider } from "~provider/chat";
 import Prism from "prismjs";
+import { articleOptimization } from "~components/articleOptimization";
+import { originOptimization } from "~components/originOptimization";
+import   "~components/originOptimization/fix.less";
 
 export const getStyle: PlasmoGetStyle = () => {
     const style = document.createElement("style");
@@ -137,7 +140,9 @@ const Main = () => {
     }, []);
 
     const documentClone = document.cloneNode(true);
-    const article = new Readability(documentClone as Document,  {}).parse();
+    const rawArticle = new Readability(documentClone as Document,  {}).parse();
+    const article = articleOptimization(rawArticle)
+
     const articleUrl = window.location.href;
     const author = article.byline ?? "";
     const authorLink = getMetaContentByProperty("article:author");
@@ -211,6 +216,10 @@ const Reader = () => {
             return !prevState;
         });
     };
+    
+    useEffect(() => {
+        originOptimization(showReader);
+    },[showReader])
 
     const keyUp = function (e) {
         if (e.key === "Escape") {

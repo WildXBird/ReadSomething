@@ -16,7 +16,7 @@
     "@babel/plugin-syntax-flow": "^7.21.4",
     "@babel/plugin-transform-react-jsx": "^7.22.3",
     "@headlessui/react": "^1.7.15",
-    "@mozilla/readability": "^0.4.4",
+    "@mozilla/readability": "^0.5.0",
     "@plasmohq/messaging": "^0.3.3",
     "@plasmohq/storage": "^1.6.1",
     "@typescript-eslint/parser": "^5.59.9",

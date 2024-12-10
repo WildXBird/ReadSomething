@@ -64,8 +64,13 @@ const ChatAssistantMessage = (props) => {
         myHeaders.append("Content-Type", "application/json");
         myHeaders.append("Authorization", `Bearer ${openaiKey}`);
 
+        // const raw = JSON.stringify({
+        //     "model": "gpt-3.5-turbo-0301",
+        //     "stream": true,
+        //     "messages": handleMessages()
+        // });
         const raw = JSON.stringify({
-            "model": "gpt-3.5-turbo-0301",
+            "model": "glm-4-flash",
             "stream": true,
             "messages": handleMessages()
         });
@@ -78,7 +83,8 @@ const ChatAssistantMessage = (props) => {
         };
 
         // @ts-ignore
-        fetch("https://api.openai.com/v1/chat/completions", requestOptions)
+        fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", requestOptions)
+        // fetch("https://api.openai.com/v1/chat/completions", requestOptions)
             .then(response => {
                 const stream = response.body;
                 const reader = stream.getReader();
